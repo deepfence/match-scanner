@@ -9,7 +9,7 @@ import (
 
 func main() {
 	imageID := "e0c9858e10ed"
-	extract, err := extractor.NewImageExtractor("", imageID)
+	extract, err := extractor.NewImageExtractor("", "", imageID)
 	if err != nil {
 		println(err.Error())
 		return

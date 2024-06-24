@@ -9,7 +9,7 @@ import (
 
 func main() {
 	root := "/"
-	extract, err := extractor.NewDirectoryExtractor(root)
+	extract, err := extractor.NewDirectoryExtractor("", root)
 	if err != nil {
 		println(err.Error())
 		return

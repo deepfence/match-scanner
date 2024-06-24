@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/deepfence/match-scanner/pkg/config"
 	"github.com/deepfence/vessel"
 )
 
@@ -15,10 +16,16 @@ type ImageExtractor struct {
 	layerTarReader *tar.Reader
 	lastLayerErr   error
 	rootFile       string
+	matchConfig    *config.Config
 }
 
-func NewImageExtractor(imageNamespace, imageID string) (*ImageExtractor, error) {
+func NewImageExtractor(configPath, imageNamespace, imageID string) (*ImageExtractor, error) {
 	runtime, err := vessel.NewRuntime()
+	if err != nil {
+		return nil, err
+	}
+
+	cfg, err := config.ParseConfig(configPath)
 	if err != nil {
 		return nil, err
 	}
@@ -43,8 +50,9 @@ func NewImageExtractor(imageNamespace, imageID string) (*ImageExtractor, error) 
 	tr := tar.NewReader(f)
 
 	return &ImageExtractor{
-		runtime:   runtime,
-		tarReader: tr,
+		runtime:     runtime,
+		tarReader:   tr,
+		matchConfig: cfg,
 	}, nil
 
 }
