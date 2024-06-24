@@ -7,6 +7,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/deepfence/match-scanner/pkg/log"
 )
 
 const (
@@ -34,23 +36,23 @@ func NewDirectoryExtractor(rootDir string) (*DirectoryExtractor, error) {
 	var visit func(path string, d fs.DirEntry, err error) error
 	visit = func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			println(err.Error())
+			log.ErrLogger(err)
 			return nil
 		}
 		info, err := d.Info()
 		if err != nil {
-			println(err.Error())
+			log.ErrLogger(err)
 		}
 		if err == nil && info.Mode()&os.ModeSymlink != 0 {
 			linkTarget, err := os.Readlink(path)
 			if err != nil {
-				println(err.Error())
+				log.ErrLogger(err)
 				return nil
 			}
 
 			absTarget, err := filepath.Abs(filepath.Join(filepath.Dir(path), linkTarget))
 			if err != nil {
-				println(err.Error())
+				log.ErrLogger(err)
 				return nil
 			}
 
@@ -83,7 +85,7 @@ func NewDirectoryExtractor(rootDir string) (*DirectoryExtractor, error) {
 	go func() {
 		err := filepath.WalkDir(rootDir, visit)
 		if err != nil {
-			println("err:", err.Error())
+			log.ErrLogger(err)
 		}
 		close(files)
 	}()
@@ -110,6 +112,9 @@ func (ce *DirectoryExtractor) NextFile() (ExtractedFile, error) {
 	return ExtractedFile{
 		Filename: fErr.f.Name(),
 		Content:  bufio.NewReader(fErr.f),
+		Cleanup: func() {
+			fErr.f.Close()
+		},
 	}, nil
 }
 
