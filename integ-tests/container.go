@@ -9,7 +9,7 @@ import (
 
 func main() {
 	containerID := "9612e7b41bc5"
-	extract, err := extractor.NewContainerExtractor("", containerID)
+	extract, err := extractor.NewContainerExtractor("", "", containerID)
 	if err != nil {
 		println(err.Error())
 		return
@@ -17,6 +17,6 @@ func main() {
 	defer extract.Close()
 
 	scanner.ApplyScan(context.Background(), extract, func(f extractor.ExtractedFile) {
-		println(f.Filename)
+		// println(f.Filename)
 	})
 }

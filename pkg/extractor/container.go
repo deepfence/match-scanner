@@ -6,22 +6,29 @@ import (
 	"os"
 	"strings"
 
+	"github.com/deepfence/match-scanner/pkg/config"
 	"github.com/deepfence/vessel"
 )
 
 type ContainerExtractor struct {
-	runtime   vessel.Runtime
-	tarReader *tar.Reader
-	rootFile  string
+	runtime     vessel.Runtime
+	tarReader   *tar.Reader
+	rootFile    string
+	matchConfig *config.Config
 }
 
-func NewContainerExtractor(containerNamespace, containerID string) (*ContainerExtractor, error) {
+func NewContainerExtractor(configPath, containerNamespace, containerID string) (*ContainerExtractor, error) {
 	runtime, err := vessel.NewRuntime()
 	if err != nil {
 		return nil, err
 	}
 
 	rootFile, err := GetTmpDir(strings.Join([]string{containerNamespace, containerID}, "-"))
+	if err != nil {
+		return nil, err
+	}
+
+	cfg, err := config.ParseConfig(configPath)
 	if err != nil {
 		return nil, err
 	}
@@ -42,16 +49,33 @@ func NewContainerExtractor(containerNamespace, containerID string) (*ContainerEx
 	tr := tar.NewReader(f)
 
 	return &ContainerExtractor{
-		runtime:   runtime,
-		tarReader: tr,
+		runtime:     runtime,
+		tarReader:   tr,
+		matchConfig: cfg,
 	}, nil
 
 }
 
 func (ce *ContainerExtractor) NextFile() (ExtractedFile, error) {
-	h, err := ce.tarReader.Next()
-	if err != nil {
-		return ExtractedFile{}, err
+	var (
+		h   *tar.Header
+		err error
+	)
+	for {
+		h, err = ce.tarReader.Next()
+		if err != nil {
+			return ExtractedFile{}, err
+		}
+
+		if h.Typeflag == tar.TypeDir {
+			continue
+		}
+
+		if ce.matchConfig.IsExcludedContainerFile(h.Name) {
+			continue
+		}
+
+		break
 	}
 	return ExtractedFile{
 		Filename: h.Name,

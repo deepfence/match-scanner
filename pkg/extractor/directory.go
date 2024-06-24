@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/deepfence/match-scanner/pkg/config"
 	"github.com/deepfence/match-scanner/pkg/log"
 )
 
@@ -21,16 +22,22 @@ type fileErr struct {
 }
 
 type DirectoryExtractor struct {
-	rootDir string
-	files   chan fileErr
-	ctx     context.Context
-	cancel  context.CancelFunc
+	rootDir     string
+	files       chan fileErr
+	ctx         context.Context
+	cancel      context.CancelFunc
+	matchConfig *config.Config
 }
 
-func NewDirectoryExtractor(rootDir string) (*DirectoryExtractor, error) {
+func NewDirectoryExtractor(configPath, rootDir string) (*DirectoryExtractor, error) {
 
 	files := make(chan fileErr, MAX_OPEN_FILE)
 	visited := make(map[string]struct{})
+	cfg, err := config.ParseConfig(configPath)
+	if err != nil {
+		return nil, err
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var visit func(path string, d fs.DirEntry, err error) error
@@ -69,6 +76,7 @@ func NewDirectoryExtractor(rootDir string) (*DirectoryExtractor, error) {
 		}
 
 		if !d.IsDir() {
+			cfg.IsExcludedExtension(path)
 			f, e := os.Open(path)
 			select {
 			case files <- fileErr{
@@ -77,6 +85,10 @@ func NewDirectoryExtractor(rootDir string) (*DirectoryExtractor, error) {
 			}:
 			case <-ctx.Done():
 				return io.EOF
+			}
+		} else {
+			if cfg.IsExcludedPath(path) {
+				return filepath.SkipDir
 			}
 		}
 		return nil
@@ -91,9 +103,10 @@ func NewDirectoryExtractor(rootDir string) (*DirectoryExtractor, error) {
 	}()
 
 	return &DirectoryExtractor{
-		files:  files,
-		ctx:    ctx,
-		cancel: cancel,
+		files:       files,
+		ctx:         ctx,
+		cancel:      cancel,
+		matchConfig: cfg,
 	}, nil
 
 }
