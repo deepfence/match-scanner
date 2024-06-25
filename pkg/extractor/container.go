@@ -3,7 +3,9 @@ package extractor
 import (
 	"archive/tar"
 	"bufio"
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/deepfence/match-scanner/pkg/config"
@@ -11,24 +13,19 @@ import (
 )
 
 type ContainerExtractor struct {
-	runtime     vessel.Runtime
-	tarReader   *tar.Reader
-	rootFile    string
-	matchConfig *config.Config
+	runtime   vessel.Runtime
+	tarReader *tar.Reader
+	rootFile  string
+	filters   config.Filters
 }
 
-func NewContainerExtractor(configPath, containerNamespace, containerID string) (*ContainerExtractor, error) {
+func NewContainerExtractor(filters config.Filters, containerNamespace, containerID string) (*ContainerExtractor, error) {
 	runtime, err := vessel.NewRuntime()
 	if err != nil {
 		return nil, err
 	}
 
 	rootFile, err := GetTmpDir(strings.Join([]string{containerNamespace, containerID}, "-"))
-	if err != nil {
-		return nil, err
-	}
-
-	cfg, err := config.ParseConfig(configPath)
 	if err != nil {
 		return nil, err
 	}
@@ -49,36 +46,27 @@ func NewContainerExtractor(configPath, containerNamespace, containerID string) (
 	tr := tar.NewReader(f)
 
 	return &ContainerExtractor{
-		runtime:     runtime,
-		tarReader:   tr,
-		matchConfig: cfg,
+		runtime:   runtime,
+		tarReader: tr,
+		filters:   filters,
+		rootFile:  rootFile,
 	}, nil
 
 }
 
 func (ce *ContainerExtractor) NextFile() (ExtractedFile, error) {
-	var (
-		h   *tar.Header
-		err error
-	)
-	for {
-		h, err = ce.tarReader.Next()
-		if err != nil {
-			return ExtractedFile{}, err
-		}
-
-		if h.Typeflag == tar.TypeDir {
-			continue
-		}
-
-		if ce.matchConfig.IsExcludedContainerFile(h.Name) {
-			continue
-		}
-
-		break
+	h, err := ce.tarReader.Next()
+	if err != nil {
+		return ExtractedFile{}, err
+	}
+	if ce.filters.PathFilters.IsExcludedPath(h.Name) {
+		return ExtractedFile{}, io.EOF
+	}
+	if ce.filters.FileNameFilters.IsExcludedExtension(h.Name) {
+		return ExtractedFile{}, io.EOF
 	}
 	return ExtractedFile{
-		Filename: h.Name,
+		Filename: filepath.Join("/", h.Name),
 		Content:  bufio.NewReader(ce.tarReader),
 	}, err
 }

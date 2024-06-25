@@ -22,22 +22,16 @@ type fileErr struct {
 }
 
 type DirectoryExtractor struct {
-	rootDir     string
-	files       chan fileErr
-	ctx         context.Context
-	cancel      context.CancelFunc
-	matchConfig *config.Config
+	rootDir string
+	files   chan fileErr
+	ctx     context.Context
+	cancel  context.CancelFunc
 }
 
-func NewDirectoryExtractor(configPath, rootDir string) (*DirectoryExtractor, error) {
+func NewDirectoryExtractor(filters config.Filters, rootDir string) (*DirectoryExtractor, error) {
 
 	files := make(chan fileErr, MAX_OPEN_FILE)
 	visited := make(map[string]struct{})
-	cfg, err := config.ParseConfig(configPath)
-	if err != nil {
-		return nil, err
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var visit func(path string, d fs.DirEntry, err error) error
@@ -46,6 +40,11 @@ func NewDirectoryExtractor(configPath, rootDir string) (*DirectoryExtractor, err
 			log.ErrLogger(err)
 			return nil
 		}
+
+		if d.IsDir() && filters.PathFilters.IsExcludedPath(path) {
+			return filepath.SkipDir
+		}
+
 		info, err := d.Info()
 		if err != nil {
 			log.ErrLogger(err)
@@ -76,7 +75,10 @@ func NewDirectoryExtractor(configPath, rootDir string) (*DirectoryExtractor, err
 		}
 
 		if !d.IsDir() {
-			cfg.IsExcludedExtension(path)
+			if filters.FileNameFilters.IsExcludedExtension(path) {
+				return nil
+			}
+
 			f, e := os.Open(path)
 			select {
 			case files <- fileErr{
@@ -85,10 +87,6 @@ func NewDirectoryExtractor(configPath, rootDir string) (*DirectoryExtractor, err
 			}:
 			case <-ctx.Done():
 				return io.EOF
-			}
-		} else {
-			if cfg.IsExcludedPath(path) {
-				return filepath.SkipDir
 			}
 		}
 		return nil
@@ -103,10 +101,9 @@ func NewDirectoryExtractor(configPath, rootDir string) (*DirectoryExtractor, err
 	}()
 
 	return &DirectoryExtractor{
-		files:       files,
-		ctx:         ctx,
-		cancel:      cancel,
-		matchConfig: cfg,
+		files:  files,
+		ctx:    ctx,
+		cancel: cancel,
 	}, nil
 
 }
