@@ -65,7 +65,7 @@ func (ce *ContainerExtractor) NextFile() (ExtractedFile, error) {
 	if ce.filters.FileNameFilters.IsExcludedExtension(h.Name) {
 		return ExtractedFile{}, io.EOF
 	}
-	if h.Size > int64(ce.filters.MaxFileSize) {
+	if ce.filters.MaxFileSize != 0 && h.Size > int64(ce.filters.MaxFileSize) {
 		return ExtractedFile{}, io.EOF
 	}
 	return ExtractedFile{

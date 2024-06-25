@@ -79,7 +79,7 @@ func NewDirectoryExtractor(filters config.Filters, rootDir string) (*DirectoryEx
 				return nil
 			}
 
-			if info.Size() > int64(filters.MaxFileSize) {
+			if filters.MaxFileSize != 0 && info.Size() > int64(filters.MaxFileSize) {
 				return nil
 			}
 
