@@ -1,6 +1,6 @@
 module github.com/deepfence/match-scanner
 
-go 1.22.0
+go 1.21.0
 
 require (
 	github.com/deepfence/vessel v0.12.3
