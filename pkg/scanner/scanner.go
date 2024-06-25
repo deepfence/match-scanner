@@ -8,8 +8,7 @@ import (
 	"github.com/deepfence/match-scanner/pkg/log"
 )
 
-func ApplyScan(
-	ctx context.Context,
+func ApplyScan(ctx context.Context,
 	extract extractor.FileExtractor,
 	scan func(extractor.ExtractedFile)) {
 
