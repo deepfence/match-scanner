@@ -79,7 +79,12 @@ func NewDirectoryExtractor(filters config.Filters, rootDir string) (*DirectoryEx
 				return nil
 			}
 
+			if info.Size() > int64(filters.MaxFileSize) {
+				return nil
+			}
+
 			f, e := os.Open(path)
+
 			select {
 			case files <- fileErr{
 				f:   f,
