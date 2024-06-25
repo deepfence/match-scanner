@@ -66,6 +66,9 @@ func (ce *ImageExtractor) nextLayerFile() (ExtractedFile, error) {
 	if ce.filters.FileNameFilters.IsExcludedExtension(h.Name) {
 		return ExtractedFile{}, io.EOF
 	}
+	if h.Size > int64(ce.filters.MaxFileSize) {
+		return ExtractedFile{}, io.EOF
+	}
 	return ExtractedFile{
 		Filename: filepath.Join("/", h.Name),
 		Content:  bufio.NewReader(ce.tarReader),

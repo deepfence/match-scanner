@@ -16,11 +16,13 @@ type StringFilters struct {
 type Filters struct {
 	PathFilters     StringFilters
 	FileNameFilters StringFilters
+	MaxFileSize     int
 }
 
 type Config struct {
 	ExcludedExtensions []string `yaml:"exclude_extensions"`
 	ExcludedPaths      []string `yaml:"exclude_paths"`
+	MaxFileSize        int      `yaml:"max_file_size"`
 }
 
 func Config2Filter(cfg Config) Filters {
@@ -31,6 +33,7 @@ func Config2Filter(cfg Config) Filters {
 		FileNameFilters: StringFilters{
 			Extensions: cfg.ExcludedExtensions,
 		},
+		MaxFileSize: cfg.MaxFileSize,
 	}
 }
 
