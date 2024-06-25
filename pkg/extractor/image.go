@@ -3,7 +3,9 @@ package extractor
 import (
 	"archive/tar"
 	"bufio"
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/deepfence/match-scanner/pkg/config"
@@ -16,16 +18,11 @@ type ImageExtractor struct {
 	layerTarReader *tar.Reader
 	lastLayerErr   error
 	rootFile       string
-	matchConfig    *config.Config
+	filters        config.Filters
 }
 
-func NewImageExtractor(configPath, imageNamespace, imageID string) (*ImageExtractor, error) {
+func NewImageExtractor(filters config.Filters, imageNamespace, imageID string) (*ImageExtractor, error) {
 	runtime, err := vessel.NewRuntime()
-	if err != nil {
-		return nil, err
-	}
-
-	cfg, err := config.ParseConfig(configPath)
 	if err != nil {
 		return nil, err
 	}
@@ -50,9 +47,10 @@ func NewImageExtractor(configPath, imageNamespace, imageID string) (*ImageExtrac
 	tr := tar.NewReader(f)
 
 	return &ImageExtractor{
-		runtime:     runtime,
-		tarReader:   tr,
-		matchConfig: cfg,
+		runtime:   runtime,
+		tarReader: tr,
+		filters:   filters,
+		rootFile:  rootFile,
 	}, nil
 
 }
@@ -62,8 +60,14 @@ func (ce *ImageExtractor) nextLayerFile() (ExtractedFile, error) {
 	if err != nil {
 		return ExtractedFile{}, err
 	}
+	if ce.filters.PathFilters.IsExcludedPath(h.Name) {
+		return ExtractedFile{}, io.EOF
+	}
+	if ce.filters.FileNameFilters.IsExcludedExtension(h.Name) {
+		return ExtractedFile{}, io.EOF
+	}
 	return ExtractedFile{
-		Filename: h.Name,
+		Filename: filepath.Join("/", h.Name),
 		Content:  bufio.NewReader(ce.tarReader),
 	}, err
 }

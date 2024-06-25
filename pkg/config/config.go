@@ -1,121 +1,70 @@
 package config
 
 import (
+	"errors"
 	"os"
-	"path"
-	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
-const (
-	ConfigFileName = "config.yaml"
-)
-
-type Config struct {
-	ExcludedExtensions     []string `yaml:"exclude_extensions"`
-	ExcludedPaths          []string `yaml:"exclude_paths"`
-	ExcludedContainerPaths []string `yaml:"exclude_container_paths"`
+type StringFilters struct {
+	StartsWith []string
+	Extensions []string
 }
 
-func ParseConfig(configPath string) (*Config, error) {
-	config := &Config{}
-	var (
-		data []byte
-		err  error
-	)
+type Filters struct {
+	PathFilters     StringFilters
+	FileNameFilters StringFilters
+}
 
-	if len(configPath) > 0 {
-		fileInfo, err := os.Stat(configPath)
-		if err != nil {
-			return config, err
-		}
+type Config struct {
+	ExcludedExtensions []string `yaml:"exclude_extensions"`
+	ExcludedPaths      []string `yaml:"exclude_paths"`
+}
 
-		if fileInfo.IsDir() {
-			configPath = path.Join(configPath, ConfigFileName)
-		}
+func Config2Filter(cfg Config) Filters {
+	return Filters{
+		PathFilters: StringFilters{
+			StartsWith: cfg.ExcludedPaths,
+		},
+		FileNameFilters: StringFilters{
+			Extensions: cfg.ExcludedExtensions,
+		},
+	}
+}
 
-		data, err = os.ReadFile(configPath)
-		if err != nil {
-			return config, err
-		}
-	} else {
-		configPath, err = defaultConfigLookup()
-		if err != nil {
-			// by default, no config file is not an error
-			return config, nil
-		}
+func ParseConfig(configPath string) (Config, error) {
+	config := Config{}
 
-		data, err = os.ReadFile(configPath)
-		if err != nil {
-			return config, err
-		}
+	if len(configPath) <= 0 {
+		return config, errors.New("no config file")
 	}
 
-	err = yaml.Unmarshal(data, config)
+	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return config, err
 	}
 
-	pathSeparator := string(os.PathSeparator)
-	var excludedPaths []string
-	for _, path := range config.ExcludedPaths {
-		excludedPaths = append(excludedPaths, strings.ReplaceAll(path, "{sep}", pathSeparator))
-	}
-	config.ExcludedPaths = excludedPaths
+	err = yaml.Unmarshal(data, &config)
 
-	var excludedContainerPaths []string
-	for _, path := range config.ExcludedContainerPaths {
-		excludedContainerPaths = append(excludedContainerPaths, strings.ReplaceAll(path, "{sep}", pathSeparator))
-	}
-	config.ExcludedContainerPaths = excludedContainerPaths
-
-	return config, nil
+	return config, err
 }
 
-func defaultConfigLookup() (string, error) {
-	ex, err := os.Executable()
-	if err != nil {
-		return "", err
-	}
-	dir := filepath.Dir(ex)
-	configPath := path.Join(dir, ConfigFileName)
-	_, err = os.ReadFile(configPath)
-	if err != nil {
-		dir, _ = os.Getwd()
-		configPath = path.Join(dir, ConfigFileName)
-		_, err = os.ReadFile(configPath)
-		if err != nil {
-			return "", err
-		}
-	}
-	return configPath, nil
-}
-
-func (c *Config) IsExcludedPath(filePath string) bool {
-	for _, path := range c.ExcludedPaths {
-		if strings.Contains(filePath, path) {
+func (c *StringFilters) IsExcludedPath(filePath string) bool {
+	for _, prefix := range c.StartsWith {
+		if strings.HasPrefix(filePath, prefix) {
 			return true
 		}
 	}
 	return false
 }
 
-func (c *Config) IsExcludedExtension(filePath string) bool {
-	for _, ext := range c.ExcludedExtensions {
+func (c *StringFilters) IsExcludedExtension(filePath string) bool {
+	for _, ext := range c.Extensions {
 		if strings.HasSuffix(filePath, ext) {
 			return true
 		}
 	}
 	return false
-}
-
-func (c *Config) IsExcludedContainerFile(filePath string) bool {
-	for _, path := range c.ExcludedContainerPaths {
-		if strings.HasPrefix(filePath, path) {
-			return true
-		}
-	}
-	return c.IsExcludedExtension(filePath)
 }
