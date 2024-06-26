@@ -69,8 +69,9 @@ func (ce *ContainerExtractor) NextFile() (ExtractedFile, error) {
 		return ExtractedFile{}, io.EOF
 	}
 	return ExtractedFile{
-		Filename: filepath.Join("/", h.Name),
-		Content:  bufio.NewReader(ce.tarReader),
+		Filename:    filepath.Join("/", h.Name),
+		Content:     bufio.NewReader(ce.tarReader),
+		ContentSize: int(h.Size),
 	}, err
 }
 

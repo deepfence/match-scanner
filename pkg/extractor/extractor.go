@@ -5,9 +5,10 @@ import (
 )
 
 type ExtractedFile struct {
-	Filename string
-	Content  *bufio.Reader
-	Cleanup  func()
+	Filename    string
+	Content     *bufio.Reader
+	ContentSize int
+	Cleanup     func()
 }
 
 func (ef *ExtractedFile) Close() {

@@ -18,8 +18,9 @@ const (
 )
 
 type fileErr struct {
-	f   *os.File
-	err error
+	f     *os.File
+	fsize int
+	err   error
 }
 
 type DirectoryExtractor struct {
@@ -114,8 +115,9 @@ func NewDirectoryExtractor(filters config.Filters, rootDir string) (*DirectoryEx
 
 			select {
 			case files <- fileErr{
-				f:   f,
-				err: e,
+				f:     f,
+				err:   e,
+				fsize: int(info.Size()),
 			}:
 			case <-ctx.Done():
 				return io.EOF
@@ -153,8 +155,9 @@ func (ce *DirectoryExtractor) NextFile() (ExtractedFile, error) {
 	}
 
 	return ExtractedFile{
-		Filename: removeRootDir(fErr.f.Name(), ce.rootDir),
-		Content:  bufio.NewReader(fErr.f),
+		Filename:    removeRootDir(fErr.f.Name(), ce.rootDir),
+		Content:     bufio.NewReader(fErr.f),
+		ContentSize: int(fErr.fsize),
 		Cleanup: func() {
 			fErr.f.Close()
 		},
