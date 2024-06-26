@@ -155,7 +155,7 @@ func (ce *DirectoryExtractor) NextFile() (ExtractedFile, error) {
 	}
 
 	return ExtractedFile{
-		Filename:    removeRootDir(fErr.f.Name(), ce.rootDir),
+		Filename:    fErr.f.Name(),
 		Content:     bufio.NewReader(fErr.f),
 		ContentSize: int(fErr.fsize),
 		Cleanup: func() {
