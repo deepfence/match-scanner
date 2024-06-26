@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	root := "/"
+	root := "/tmp"
 
 	cfg, err := config.ParseConfig("integ-tests/config.yaml")
 	if err != nil {

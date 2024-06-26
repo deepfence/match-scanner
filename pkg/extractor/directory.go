@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/deepfence/match-scanner/pkg/config"
 	"github.com/deepfence/match-scanner/pkg/log"
@@ -28,11 +29,45 @@ type DirectoryExtractor struct {
 	cancel  context.CancelFunc
 }
 
+func removeRootDir(path, rootDir string) string {
+	if rootDir == "/" {
+		return path
+	}
+	return strings.Replace(path, rootDir, "", 1)
+}
+
+func resolveSymlink(path string) string {
+	linkTarget, err := os.Readlink(path)
+	if err != nil {
+		log.ErrLogger(err)
+		return ""
+	}
+
+	absTarget, err := filepath.Abs(filepath.Join(filepath.Dir(path), linkTarget))
+	if err != nil {
+		log.ErrLogger(err)
+		return ""
+	}
+	return absTarget
+}
+
+func isSymlink(path string) bool {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeSymlink != 0
+}
+
 func NewDirectoryExtractor(filters config.Filters, rootDir string) (*DirectoryExtractor, error) {
 
 	files := make(chan fileErr, MAX_OPEN_FILE)
 	visited := make(map[string]struct{})
 	ctx, cancel := context.WithCancel(context.Background())
+
+	if isSymlink(rootDir) {
+		rootDir = resolveSymlink(rootDir)
+	}
 
 	var visit func(path string, d fs.DirEntry, err error) error
 	visit = func(path string, d fs.DirEntry, err error) error {
@@ -41,33 +76,25 @@ func NewDirectoryExtractor(filters config.Filters, rootDir string) (*DirectoryEx
 			return nil
 		}
 
-		if d.IsDir() && filters.PathFilters.IsExcludedPath(path) {
-			return filepath.SkipDir
-		}
-
 		info, err := d.Info()
 		if err != nil {
 			log.ErrLogger(err)
 		}
-		if err == nil && info.Mode()&os.ModeSymlink != 0 {
-			linkTarget, err := os.Readlink(path)
-			if err != nil {
-				log.ErrLogger(err)
-				return nil
-			}
 
-			absTarget, err := filepath.Abs(filepath.Join(filepath.Dir(path), linkTarget))
-			if err != nil {
-				log.ErrLogger(err)
-				return nil
-			}
+		if err == nil && info.Mode()&os.ModeSymlink != 0 {
+			absTarget := resolveSymlink(path)
 
 			if _, has := visited[absTarget]; has {
 				return nil
 			}
 
 			visited[absTarget] = struct{}{}
+
 			return filepath.WalkDir(path, visit)
+		}
+
+		if d.IsDir() && filters.PathFilters.IsExcludedPath(removeRootDir(path, rootDir)) {
+			return filepath.SkipDir
 		}
 
 		if !d.Type().IsRegular() {
@@ -106,9 +133,10 @@ func NewDirectoryExtractor(filters config.Filters, rootDir string) (*DirectoryEx
 	}()
 
 	return &DirectoryExtractor{
-		files:  files,
-		ctx:    ctx,
-		cancel: cancel,
+		files:   files,
+		ctx:     ctx,
+		cancel:  cancel,
+		rootDir: rootDir,
 	}, nil
 
 }
@@ -125,7 +153,7 @@ func (ce *DirectoryExtractor) NextFile() (ExtractedFile, error) {
 	}
 
 	return ExtractedFile{
-		Filename: fErr.f.Name(),
+		Filename: removeRootDir(fErr.f.Name(), ce.rootDir),
 		Content:  bufio.NewReader(fErr.f),
 		Cleanup: func() {
 			fErr.f.Close()
