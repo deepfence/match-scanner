@@ -2,10 +2,10 @@ package extractor
 
 import (
 	"archive/tar"
-	"bytes"
+	"context"
 	"io"
+	"io/fs"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/deepfence/match-scanner/pkg/config"
@@ -15,10 +15,13 @@ import (
 type ImageExtractor struct {
 	runtime        vessel.Runtime
 	tarReader      *tar.Reader
-	layerTarReader *tar.Reader
+	layerTarReader fs.FS
 	lastLayerErr   error
 	rootFile       string
 	filters        config.Filters
+	ctx      context.Context
+	cancel   context.CancelFunc
+	files    chan fileErr
 }
 
 func NewImageExtractor(filters config.Filters, imageNamespace, imageID string) (*ImageExtractor, error) {
@@ -56,26 +59,24 @@ func NewImageExtractor(filters config.Filters, imageNamespace, imageID string) (
 }
 
 func (ce *ImageExtractor) nextLayerFile() (ExtractedFile, error) {
-	h, err := ce.layerTarReader.Next()
-	if err != nil {
-		return ExtractedFile{}, err
-	}
-	if ce.filters.PathFilters.IsExcludedPath(h.Name) {
+	fErr, opened := <-ce.files
+
+	if !opened {
 		return ExtractedFile{}, io.EOF
 	}
-	if ce.filters.FileNameFilters.IsExcludedExtension(h.Name) {
-		return ExtractedFile{}, io.EOF
+
+	if fErr.err != nil {
+		return ExtractedFile{}, fErr.err
 	}
-	if ce.filters.MaxFileSize != 0 && h.Size > int64(ce.filters.MaxFileSize) {
-		return ExtractedFile{}, io.EOF
-	}
-	buf := make([]byte, 0, h.Size)
-	io.Copy(bytes.NewBuffer(buf), ce.tarReader)
+
 	return ExtractedFile{
-		Filename:    filepath.Join("/", h.Name),
-		Content:     bytes.NewReader(buf),
-		ContentSize: int(h.Size),
-	}, err
+		Filename:    fErr.fpath,
+		Content:     fErr.f.(io.ReadSeeker),
+		ContentSize: int(fErr.fsize),
+		Cleanup: func() {
+			fErr.f.Close()
+		},
+	}, nil
 }
 
 func (ce *ImageExtractor) NextFile() (ExtractedFile, error) {
@@ -93,7 +94,7 @@ func (ce *ImageExtractor) NextFile() (ExtractedFile, error) {
 		if err != nil {
 			return ExtractedFile{}, err
 		}
-		ce.layerTarReader = tar.NewReader(ce.tarReader)
+		ce.layerTarReader, ce.ctx, ce.cancel, ce.files, err = WalkLayer(ce.tarReader, ce.filters)
 	}
 }
 

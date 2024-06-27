@@ -17,7 +17,8 @@ const (
 )
 
 type fileErr struct {
-	f     *os.File
+	f     fs.File
+	fpath string
 	fsize int
 	err   error
 }
@@ -117,6 +118,7 @@ func NewDirectoryExtractor(filters config.Filters, rootDir string, skipSymlink b
 
 			select {
 			case files <- fileErr{
+				fpath: path,
 				f:     f,
 				err:   e,
 				fsize: int(info.Size()),
@@ -157,8 +159,8 @@ func (ce *DirectoryExtractor) NextFile() (ExtractedFile, error) {
 	}
 
 	return ExtractedFile{
-		Filename:    fErr.f.Name(),
-		Content:     fErr.f,
+		Filename:    fErr.fpath,
+		Content:     fErr.f.(io.ReadSeeker),
 		ContentSize: int(fErr.fsize),
 		Cleanup: func() {
 			fErr.f.Close()

@@ -1,11 +1,10 @@
 package extractor
 
 import (
-	"archive/tar"
-	"bytes"
+	"context"
 	"io"
+	"io/fs"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/deepfence/match-scanner/pkg/config"
@@ -13,10 +12,13 @@ import (
 )
 
 type ContainerExtractor struct {
-	runtime   vessel.Runtime
-	tarReader *tar.Reader
-	rootFile  string
-	filters   config.Filters
+	runtime  vessel.Runtime
+	tfs      fs.FS
+	rootFile string
+	filters  config.Filters
+	ctx      context.Context
+	cancel   context.CancelFunc
+	files    chan fileErr
 }
 
 func NewContainerExtractor(filters config.Filters, containerNamespace, containerID string) (*ContainerExtractor, error) {
@@ -43,40 +45,42 @@ func NewContainerExtractor(filters config.Filters, containerNamespace, container
 		return nil, err
 	}
 
-	tr := tar.NewReader(f)
+	tfs, ctx, cancel, files, _ := WalkLayer(f, filters)
 
 	return &ContainerExtractor{
-		runtime:   runtime,
-		tarReader: tr,
-		filters:   filters,
-		rootFile:  rootFile,
+		runtime:  runtime,
+		tfs:      tfs,
+		filters:  filters,
+		rootFile: rootFile,
+		ctx:      ctx,
+		cancel:   cancel,
+		files:    files,
 	}, nil
 
 }
 
 func (ce *ContainerExtractor) NextFile() (ExtractedFile, error) {
-	h, err := ce.tarReader.Next()
-	if err != nil {
-		return ExtractedFile{}, err
-	}
-	if ce.filters.PathFilters.IsExcludedPath(h.Name) {
+	fErr, opened := <-ce.files
+
+	if !opened {
 		return ExtractedFile{}, io.EOF
 	}
-	if ce.filters.FileNameFilters.IsExcludedExtension(h.Name) {
-		return ExtractedFile{}, io.EOF
+
+	if fErr.err != nil {
+		return ExtractedFile{}, fErr.err
 	}
-	if ce.filters.MaxFileSize != 0 && h.Size > int64(ce.filters.MaxFileSize) {
-		return ExtractedFile{}, io.EOF
-	}
-	buf := make([]byte, 0, h.Size)
-	io.Copy(bytes.NewBuffer(buf), ce.tarReader)
+
 	return ExtractedFile{
-		Filename:    filepath.Join("/", h.Name),
-		Content:     bytes.NewReader(buf),
-		ContentSize: int(h.Size),
-	}, err
+		Filename:    fErr.fpath,
+		Content:     fErr.f.(io.ReadSeeker),
+		ContentSize: int(fErr.fsize),
+		Cleanup: func() {
+			fErr.f.Close()
+		},
+	}, nil
 }
 
 func (ce *ContainerExtractor) Close() error {
+	ce.cancel()
 	return os.Remove(ce.rootFile)
 }

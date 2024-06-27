@@ -4,6 +4,7 @@ go 1.21.0
 
 require (
 	github.com/deepfence/vessel v0.12.3
+	github.com/nlepage/go-tarfs v1.2.1
 	gopkg.in/yaml.v3 v3.0.1
 )
 
