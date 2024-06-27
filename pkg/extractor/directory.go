@@ -1,7 +1,6 @@
 package extractor
 
 import (
-	"bufio"
 	"context"
 	"io"
 	"io/fs"
@@ -60,7 +59,7 @@ func isSymlink(path string) bool {
 	return info.Mode()&os.ModeSymlink != 0
 }
 
-func NewDirectoryExtractor(filters config.Filters, rootDir string) (*DirectoryExtractor, error) {
+func NewDirectoryExtractor(filters config.Filters, rootDir string, skipSymlink bool) (*DirectoryExtractor, error) {
 
 	files := make(chan fileErr, MAX_OPEN_FILE)
 	visited := make(map[string]struct{})
@@ -83,6 +82,9 @@ func NewDirectoryExtractor(filters config.Filters, rootDir string) (*DirectoryEx
 		}
 
 		if err == nil && info.Mode()&os.ModeSymlink != 0 {
+			if skipSymlink {
+				return nil
+			}
 			absTarget := resolveSymlink(path)
 
 			if _, has := visited[absTarget]; has {
@@ -156,7 +158,7 @@ func (ce *DirectoryExtractor) NextFile() (ExtractedFile, error) {
 
 	return ExtractedFile{
 		Filename:    fErr.f.Name(),
-		Content:     bufio.NewReader(fErr.f),
+		Content:     fErr.f,
 		ContentSize: int(fErr.fsize),
 		Cleanup: func() {
 			fErr.f.Close()

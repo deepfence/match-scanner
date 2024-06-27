@@ -11,7 +11,7 @@ import (
 func main() {
 	imageID := "e0c9858e10ed"
 
-	cfg, err := config.ParseConfig("integ-test/config.yaml")
+	cfg, err := config.ParseConfig("integ-tests/config.yaml")
 	if err != nil {
 		println(err.Error())
 		return

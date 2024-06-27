@@ -2,7 +2,7 @@ package extractor
 
 import (
 	"archive/tar"
-	"bufio"
+	"bytes"
 	"io"
 	"os"
 	"path/filepath"
@@ -68,9 +68,11 @@ func (ce *ContainerExtractor) NextFile() (ExtractedFile, error) {
 	if ce.filters.MaxFileSize != 0 && h.Size > int64(ce.filters.MaxFileSize) {
 		return ExtractedFile{}, io.EOF
 	}
+	buf := make([]byte, 0, h.Size)
+	io.Copy(bytes.NewBuffer(buf), ce.tarReader)
 	return ExtractedFile{
 		Filename:    filepath.Join("/", h.Name),
-		Content:     bufio.NewReader(ce.tarReader),
+		Content:     bytes.NewReader(buf),
 		ContentSize: int(h.Size),
 	}, err
 }

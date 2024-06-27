@@ -17,7 +17,7 @@ func main() {
 		return
 	}
 
-	extract, err := extractor.NewDirectoryExtractor(config.Config2Filter(cfg), root)
+	extract, err := extractor.NewDirectoryExtractor(config.Config2Filter(cfg), root, false)
 	if err != nil {
 		println(err.Error())
 		return

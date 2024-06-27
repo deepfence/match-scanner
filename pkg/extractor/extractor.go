@@ -1,12 +1,10 @@
 package extractor
 
-import (
-	"bufio"
-)
+import "io"
 
 type ExtractedFile struct {
 	Filename    string
-	Content     *bufio.Reader
+	Content     io.ReadSeeker
 	ContentSize int
 	Cleanup     func()
 }
