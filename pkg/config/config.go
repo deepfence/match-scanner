@@ -14,15 +14,17 @@ type StringFilters struct {
 }
 
 type Filters struct {
-	PathFilters     StringFilters
-	FileNameFilters StringFilters
-	MaxFileSize     int
+	PathFilters       StringFilters
+	FileNameFilters   StringFilters
+	MaxFileSize       int
+	SkipNonExecutable bool
 }
 
 type Config struct {
 	ExcludedExtensions []string `yaml:"exclude_extensions"`
 	ExcludedPaths      []string `yaml:"exclude_paths"`
 	MaxFileSize        int      `yaml:"max_file_size"`
+	SkipNonExecutable  bool     `yaml:"skip_non_executable"`
 }
 
 func Config2Filter(cfg Config) Filters {
@@ -33,7 +35,8 @@ func Config2Filter(cfg Config) Filters {
 		FileNameFilters: StringFilters{
 			Extensions: cfg.ExcludedExtensions,
 		},
-		MaxFileSize: cfg.MaxFileSize,
+		MaxFileSize:       cfg.MaxFileSize,
+		SkipNonExecutable: cfg.SkipNonExecutable,
 	}
 }
 

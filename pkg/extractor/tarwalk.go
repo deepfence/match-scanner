@@ -62,6 +62,7 @@ func WalkLayer(rootFile io.Reader, filters config.Filters) (fs.FS, context.Conte
 				fpath: fullPath,
 				f:     f,
 				err:   e,
+				fperm: info.Mode().Perm(),
 				fsize: int(info.Size()),
 			}:
 			case <-ctx.Done():
