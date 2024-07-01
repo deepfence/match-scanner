@@ -1,12 +1,16 @@
 package extractor
 
-import "io"
+import (
+	"io"
+	"os"
+)
 
 type ExtractedFile struct {
-	Filename    string
-	Content     io.ReadSeeker
-	ContentSize int
-	Cleanup     func()
+	Filename        string
+	Content         io.ReadSeeker
+	ContentSize     int
+	FilePermissions os.FileMode
+	Cleanup         func()
 }
 
 func (ef *ExtractedFile) Close() {

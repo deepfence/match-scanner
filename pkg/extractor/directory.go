@@ -20,6 +20,7 @@ type fileErr struct {
 	f     fs.File
 	fpath string
 	fsize int
+	fperm os.FileMode
 	err   error
 }
 
@@ -122,6 +123,7 @@ func NewDirectoryExtractor(filters config.Filters, rootDir string, skipSymlink b
 				f:     f,
 				err:   e,
 				fsize: int(info.Size()),
+				fperm: info.Mode().Perm(),
 			}:
 			case <-ctx.Done():
 				return io.EOF
@@ -159,9 +161,10 @@ func (ce *DirectoryExtractor) NextFile() (ExtractedFile, error) {
 	}
 
 	return ExtractedFile{
-		Filename:    fErr.fpath,
-		Content:     fErr.f.(io.ReadSeeker),
-		ContentSize: int(fErr.fsize),
+		Filename:        fErr.fpath,
+		Content:         fErr.f.(io.ReadSeeker),
+		ContentSize:     int(fErr.fsize),
+		FilePermissions: fErr.fperm,
 		Cleanup: func() {
 			fErr.f.Close()
 		},
