@@ -81,9 +81,10 @@ func NewDirectoryExtractor(filters config.Filters, rootDir string, skipSymlink b
 		info, err := d.Info()
 		if err != nil {
 			log.ErrLogger(err)
+			return nil
 		}
 
-		if err == nil && info.Mode()&os.ModeSymlink != 0 {
+		if info.Mode()&os.ModeSymlink != 0 {
 			if skipSymlink {
 				return nil
 			}
