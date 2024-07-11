@@ -32,4 +32,7 @@ func ApplyScan(ctx context.Context,
 		scan(file)
 		file.Close()
 	}
+	if err == io.EOF {
+		log.InfoLogger("scan completed")
+	}
 }
