@@ -2,6 +2,7 @@ package extractor
 
 import (
 	"archive/tar"
+	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
@@ -48,7 +49,16 @@ func NewImageExtractor(filters config.Filters, imageNamespace, imageID string) (
 		return nil, err
 	}
 
-	tr := tar.NewReader(f)
+	var reader io.Reader = f
+
+	// Check if the tarball is compressed
+	// If so, use gzip reader
+	gzipReader, err := gzip.NewReader(f)
+	if err == nil {
+		reader = gzipReader
+	}
+
+	tr := tar.NewReader(reader)
 
 	return &ImageExtractor{
 		runtime:   runtime,

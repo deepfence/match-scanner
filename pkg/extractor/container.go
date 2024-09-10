@@ -1,6 +1,7 @@
 package extractor
 
 import (
+	"compress/gzip"
 	"context"
 	"io"
 	"io/fs"
@@ -45,7 +46,16 @@ func NewContainerExtractor(filters config.Filters, containerNamespace, container
 		return nil, err
 	}
 
-	tfs, ctx, cancel, files, err := WalkLayer(f, filters)
+	var reader io.Reader = f
+
+	// Check if the tarball is compressed
+	// If so, use gzip reader
+	gzipReader, err := gzip.NewReader(f)
+	if err == nil {
+		reader = gzipReader
+	}
+
+	tfs, ctx, cancel, files, err := WalkLayer(reader, filters)
 	if err != nil {
 		return nil, err
 	}
