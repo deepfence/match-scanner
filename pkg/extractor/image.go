@@ -3,6 +3,7 @@ package extractor
 import (
 	"archive/tar"
 	"context"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -19,9 +20,9 @@ type ImageExtractor struct {
 	lastLayerErr   error
 	rootFile       string
 	filters        config.Filters
-	ctx      context.Context
-	cancel   context.CancelFunc
-	files    chan fileErr
+	ctx            context.Context
+	cancel         context.CancelFunc
+	files          chan fileErr
 }
 
 func NewImageExtractor(filters config.Filters, imageNamespace, imageID string) (*ImageExtractor, error) {
@@ -95,6 +96,9 @@ func (ce *ImageExtractor) NextFile() (ExtractedFile, error) {
 			return ExtractedFile{}, err
 		}
 		ce.layerTarReader, ce.ctx, ce.cancel, ce.files, err = WalkLayer(ce.tarReader, ce.filters)
+		if err != nil {
+			fmt.Printf("err: %v", err)
+		}
 	}
 }
 
