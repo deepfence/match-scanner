@@ -45,7 +45,10 @@ func NewContainerExtractor(filters config.Filters, containerNamespace, container
 		return nil, err
 	}
 
-	tfs, ctx, cancel, files, _ := WalkLayer(f, filters)
+	tfs, ctx, cancel, files, err := WalkLayer(f, filters)
+	if err != nil {
+		return nil, err
+	}
 
 	return &ContainerExtractor{
 		runtime:  runtime,
