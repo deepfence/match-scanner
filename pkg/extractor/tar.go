@@ -2,7 +2,6 @@ package extractor
 
 import (
 	"archive/tar"
-	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
@@ -29,13 +28,9 @@ func NewTarExtractor(filters config.Filters, imageNamespace, tarPath string) (*T
 		return nil, err
 	}
 
-	var reader io.Reader = f
-
-	// Check if the tarball is compressed
-	// If so, use gzip reader
-	gzipReader, err := gzip.NewReader(f)
-	if err == nil {
-		reader = gzipReader
+	reader, err := UnzipIfCompressed(f)
+	if err != nil {
+		return nil, err
 	}
 
 	tr := tar.NewReader(reader)
