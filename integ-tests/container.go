@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	containerID := "9612e7b41bc5"
+	containerID := "2314fddc92b8"
 
 	cfg, err := config.ParseConfig("integ-tests/config.yaml")
 	if err != nil {

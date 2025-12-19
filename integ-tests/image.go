@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	imageID := "e0c9858e10ed"
+	imageID := "d62cb683f583"
 
 	cfg, err := config.ParseConfig("integ-tests/config.yaml")
 	if err != nil {
