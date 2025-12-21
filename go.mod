@@ -67,5 +67,9 @@ require (
 	google.golang.org/protobuf v1.36.10 // indirect
 )
 
-// Replace old monolithic genproto with newer split modules
-replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20241219192143-6b3ec007d9bb
+// Exclude old monolithic genproto versions that conflict with newer split modules
+exclude (
+	google.golang.org/genproto v0.0.0-20180817151627-c66870c02cf8
+	google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55
+	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
+)
